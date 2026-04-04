@@ -1,0 +1,27 @@
+{
+  "name": "truthlens-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TruthLens Backend API — fact-checking service",
+  "scripts": {
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "groq-sdk": "^0.8.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/node-fetch": "^2.6.12",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TruthLens</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">TruthLens</h1>
+      <span class="version">v1.0</span>
+    </div>
+
+    <p class="status">
+      <span class="status-dot active"></span>
+      Active &mdash; watching for AI output
+    </p>
+
+    <div class="counter">
+      <span class="counter-number" id="totalChecked">0</span>
+      <span class="counter-label">sentences checked today</span>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="legend">
+      <div class="legend-item">
+        <span class="dot green"></span>
+        <span>Verified</span>
+      </div>
+      <div class="legend-item">
+        <span class="dot yellow"></span>
+        <span>Unverified</span>
+      </div>
+      <div class="legend-item">
+        <span class="dot red"></span>
+        <span>Contradicted</span>
+      </div>
+      <div class="legend-item">
+        <span class="dot grey"></span>
+        <span>Not a claim</span>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <a class="github-link" href="https://github.com" target="_blank">
+      &#10697; View on GitHub
+    </a>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

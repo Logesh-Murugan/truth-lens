@@ -1,0 +1,19 @@
+{
+  "name": "truthlens-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TruthLens Chrome Extension — AI hallucination detector",
+  "scripts": {
+    "generate-icons": "node generate-icons.js",
+    "postinstall": "node generate-icons.js",
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}

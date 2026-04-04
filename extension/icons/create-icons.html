@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate TruthLens Icons</title></head>
+<body>
+<h1>TruthLens Icon Generator</h1>
+<p>Click the buttons below to download each icon:</p>
+<div id="previews"></div>
+<script>
+function createGreenCirclePNG(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.clearRect(0, 0, size, size);
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.fillStyle = '#4ade80';
+  ctx.fill();
+  
+  return canvas.toDataURL('image/png');
+}
+
+const sizes = [16, 48, 128];
+const container = document.getElementById('previews');
+
+sizes.forEach(size => {
+  const dataUrl = createGreenCirclePNG(size);
+  
+  const div = document.createElement('div');
+  div.style.marginBottom = '20px';
+  
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.border = '1px solid #ccc';
+  div.appendChild(img);
+  
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = `icon${size}.png`;
+  link.textContent = ` Download icon${size}.png`;
+  link.style.marginLeft = '10px';
+  div.appendChild(link);
+  
+  container.appendChild(div);
+});
+</script>
+</body>
+</html>
