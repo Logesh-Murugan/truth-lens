@@ -5,6 +5,20 @@ import { searchPubMed } from "../services/pubmed";
 
 const router = Router();
 
+let lastGroqCallTime = 0;
+const MIN_GROQ_INTERVAL_MS = 2000;
+
+async function waitForGroqSlot() {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastGroqCallTime;
+  if (timeSinceLastCall < MIN_GROQ_INTERVAL_MS) {
+    await new Promise(resolve => 
+      setTimeout(resolve, MIN_GROQ_INTERVAL_MS - timeSinceLastCall)
+    );
+  }
+  lastGroqCallTime = Date.now();
+}
+
 router.post("/check", async (req: Request, res: Response) => {
   try {
     const { sentence } = req.body;
@@ -20,6 +34,8 @@ router.post("/check", async (req: Request, res: Response) => {
 
     const trimmed = sentence.trim();
     console.log(`\n[TruthLens] Checking: "${trimmed}"`);
+
+    await waitForGroqSlot();
 
     // Step 1: Determine if this is a factual claim
     const claimResult = await isFactualClaim(trimmed);

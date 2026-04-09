@@ -19,12 +19,23 @@ export async function searchWikipedia(
     const encoded = encodeURIComponent(query);
     const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encoded}`;
 
-    let response = await fetch(summaryUrl);
+    let response = await fetch(summaryUrl, {
+      headers: {
+        'User-Agent': 'TruthLens/1.0 (student project, contact: student@email.com)',
+        'Api-User-Agent': 'TruthLens/1.0'
+      }
+    });
 
     if (response.status === 404) {
       // Fall back to search API
+      await new Promise(resolve => setTimeout(resolve, 500));
       const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encoded}&format=json&srlimit=1&origin=*`;
-      const searchResponse = await fetch(searchUrl);
+      const searchResponse = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'TruthLens/1.0 (student project, contact: student@email.com)',
+          'Api-User-Agent': 'TruthLens/1.0'
+        }
+      });
 
       if (!searchResponse.ok) {
         console.log("[Wikipedia] Search request failed:", searchResponse.status);
@@ -42,7 +53,13 @@ export async function searchWikipedia(
       // Fetch summary for the first search result
       const title = encodeURIComponent(results[0].title);
       const resultSummaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${title}`;
-      response = await fetch(resultSummaryUrl);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      response = await fetch(resultSummaryUrl, {
+        headers: {
+          'User-Agent': 'TruthLens/1.0 (student project, contact: student@email.com)',
+          'Api-User-Agent': 'TruthLens/1.0'
+        }
+      });
     }
 
     if (!response.ok) {

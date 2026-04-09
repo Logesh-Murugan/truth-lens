@@ -1,12 +1,17 @@
+export {};
 /**
  * TruthLens Content Script v1.0
  *
  * Watches AI chat pages for new text, sends sentences to the TruthLens
  * backend for fact-checking, and injects colored dots next to each sentence.
  */
+const sentenceQueue: Array<{sentence: string, element: Element, dotId: string}> = [];
+let queueRunning = false;
+const QUEUE_DELAY_MS = 2500;
+const MAX_QUEUE_SIZE = 15;
 
-const BACKEND_URL = "http://localhost:3001"; // change to Railway URL after deployment
-const MIN_SENTENCE_LENGTH = 25;
+const BACKEND_URL = "http://localhost:3000"; // change to Railway URL after deployment
+const MIN_SENTENCE_LENGTH = 40;
 const TRUTHLENS_ATTR = "data-truthlens-checked";
 
 // ── Color map ──────────────────────────────────────────────────────────
@@ -39,8 +44,34 @@ document.addEventListener("click", (e) => {
 /**
  * Inject a colored dot after an element indicating the fact-check result.
  */
-function injectDot(element: Element, color: string, reason: string): void {
-  const dot = document.createElement("span");
+function injectDot(element: Element, color: string, reason: string, dotId?: string): void {
+  // Inject CSS animation if needed
+  if (!document.getElementById("truthlens-styles")) {
+    const style = document.createElement("style");
+    style.id = "truthlens-styles";
+    style.textContent = `
+      @keyframes truthlens-pulse {
+        from { opacity: 1; }
+        to { opacity: 0.3; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  let dot: HTMLElement;
+  let isExisting = false;
+  if (dotId) {
+    const existing = document.getElementById(dotId);
+    if (existing) {
+      dot = existing;
+      isExisting = true;
+    } else {
+      dot = document.createElement("span");
+      dot.id = dotId;
+    }
+  } else {
+    dot = document.createElement("span");
+  }
 
   dot.style.display = "inline-block";
   dot.style.width = "9px";
@@ -50,8 +81,23 @@ function injectDot(element: Element, color: string, reason: string): void {
   dot.style.verticalAlign = "middle";
   dot.style.cursor = "pointer";
   dot.style.flexShrink = "0";
-  dot.style.backgroundColor = DOT_COLORS[color] || DOT_COLORS.grey;
+  
+  if (color === "loading") {
+    dot.style.backgroundColor = "#d1d5db";
+    dot.style.animation = "truthlens-pulse 1s infinite alternate";
+  } else {
+    dot.style.backgroundColor = DOT_COLORS[color] || DOT_COLORS.grey;
+    dot.style.animation = "none";
+  }
+  
   dot.title = reason;
+
+  // Clear previous listeners by cloning if we are updating (simple hack to remove old listeners)
+  if (isExisting) {
+    const newDot = dot.cloneNode(true) as HTMLElement;
+    dot.replaceWith(newDot);
+    dot = newDot;
+  }
 
   dot.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -82,9 +128,41 @@ function injectDot(element: Element, color: string, reason: string): void {
     activePopup = popup;
   });
 
-  // Insert the dot after the element (as sibling)
-  if (element.parentNode) {
+  if (!isExisting && element.parentNode) {
     element.parentNode.insertBefore(dot, element.nextSibling);
+  }
+}
+
+function scheduleNextCheck() {
+  if (sentenceQueue.length === 0) {
+    queueRunning = false;
+    return;
+  }
+  queueRunning = true;
+  // Use setTimeout at top level — this releases the main thread between checks
+  setTimeout(async () => {
+    const item = sentenceQueue.shift();
+    if (item) {
+      await checkSentence(item.sentence, item.element, item.dotId);
+    }
+    scheduleNextCheck(); // schedule the NEXT one after this one finishes
+  }, QUEUE_DELAY_MS);
+}
+
+function addToQueue(sentence: string, element: Element, dotId: string, isImportant: boolean = false) {
+  if (sentenceQueue.length >= MAX_QUEUE_SIZE) {
+    console.log('TruthLens: queue full, skipping sentence');
+    return;
+  }
+  
+  if (isImportant) {
+    sentenceQueue.unshift({ sentence, element, dotId });
+  } else {
+    sentenceQueue.push({ sentence, element, dotId });
+  }
+  
+  if (!queueRunning) {
+    scheduleNextCheck();
   }
 }
 
@@ -95,17 +173,27 @@ function injectDot(element: Element, color: string, reason: string): void {
  */
 async function checkSentence(
   sentence: string,
-  element: Element
+  element: Element,
+  dotId: string
 ): Promise<void> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/check`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sentence }),
+    const response = await new Promise<any>((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { type: "CHECK_SENTENCE", text: sentence },
+        (res) => {
+          if (chrome.runtime.lastError) {
+            return reject(chrome.runtime.lastError);
+          }
+          if (res && res.success) {
+            resolve(res.data);
+          } else {
+            reject(res?.error || "Unknown error");
+          }
+        }
+      );
     });
 
-    const data = await response.json();
-    injectDot(element, data.result, data.reason);
+    injectDot(element, response.result, response.reason, dotId);
 
     // Update checked count in storage
     try {
@@ -120,7 +208,8 @@ async function checkSentence(
     injectDot(
       element,
       "grey",
-      "TruthLens: could not connect to verification server"
+      "TruthLens: could not connect to verification server",
+      dotId
     );
   }
 }
@@ -132,10 +221,11 @@ async function checkSentence(
  */
 function processParagraph(element: Element): void {
   if (element.getAttribute(TRUTHLENS_ATTR)) return;
-  element.setAttribute(TRUTHLENS_ATTR, "true");
 
   const text = element.textContent?.trim();
   if (!text || text.length < MIN_SENTENCE_LENGTH) return;
+  
+  element.setAttribute(TRUTHLENS_ATTR, "true");
 
   // Split on sentence boundaries
   const sentences = text
@@ -143,9 +233,16 @@ function processParagraph(element: Element): void {
     .map((s) => s.trim())
     .filter((s) => s.length > MIN_SENTENCE_LENGTH);
 
+  const keywords = ["dosage", "dose", "mg", "medication", "drug", "symptom", "treatment", "cure", "law", "legal", "ruling", "case number", "study", "research", "percent", "%"];
+
   for (const sentence of sentences) {
-    // Fire and forget — don't block the UI
-    checkSentence(sentence, element);
+    const dotId = `truthlens-loading-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    injectDot(element, "loading", "Checking...", dotId);
+    
+    // Check importance
+    const isImportant = keywords.some(k => sentence.toLowerCase().includes(k));
+    
+    addToQueue(sentence, element, dotId, isImportant);
   }
 }
 
@@ -182,20 +279,40 @@ function scanElement(node: Element): void {
 
 // ── MutationObserver ───────────────────────────────────────────────────
 
+function isLikelyAIOutput(node: Element): boolean {
+  if (node.tagName === 'BUTTON') return false;
+  if (node.tagName === 'SVG') return false;
+  if (node.tagName === 'IMG') return false;
+  
+  const text = node.textContent?.trim() || '';
+  if (node.tagName === 'SPAN' && text.length < 20) return false;
+  
+  // Check if inside an AI response container
+  const aiSelectors = [
+    '[data-message-author-role="assistant"]',
+    '.prose',
+    '.markdown', 
+    '.agent-turn',
+    '[class*="response"]',
+    '[class*="message-content"]'
+  ];
+  
+  return aiSelectors.some(sel => 
+    node.closest(sel) !== null || node.matches(sel)
+  );
+}
+
 /**
  * Start watching the page for new AI-generated content.
  */
 function watchPage(): void {
-  // Process existing content first
-  document.querySelectorAll(COMBINED_SELECTOR).forEach((el) => {
-    processParagraph(el);
-  });
-
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node instanceof Element) {
-          scanElement(node);
+          if (isLikelyAIOutput(node)) {
+            scanElement(node);
+          }
         }
       }
     }
