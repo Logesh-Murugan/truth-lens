@@ -3,14 +3,61 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import checkRouter from "./routes/check";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors()); // Allow all origins for Chrome extension requests
+// CORS configuration matching constraints
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    if (!origin) return callback(null, true);
+    if (
+      origin.startsWith('chrome-extension://') ||
+      origin === 'http://localhost:3000' ||
+      (origin.startsWith('https://') && origin.endsWith('.railway.app'))
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Rate Limiting on API
+const checkLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per windowMs
+  message: { error: "Too many requests. Please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/check", checkLimiter);
+
+// Request Logging using middleware interceptor
+app.use("/api/check", (req, res, next) => {
+  const originalSend = res.send;
+  res.send = function (body) {
+    let resultLog = "unknown";
+    try {
+      const parsed = JSON.parse(body);
+      resultLog = parsed.result || resultLog;
+    } catch (e) {}
+
+    const sentence: string = req.body?.sentence || "";
+    const shortSentence = sentence.length > 50 ? sentence.substring(0, 50) + "..." : sentence;
+    const timestamp = new Date().toISOString();
+
+    console.log(`[${timestamp}] POST /api/check | "${shortSentence}" ➔ [${resultLog.toUpperCase()}]`);
+
+    // @ts-ignore
+    return originalSend.apply(this, arguments);
+  };
+  next();
+});
 
 // Routes
 app.use("/api", checkRouter);
@@ -22,7 +69,8 @@ app.get("/health", (_req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`TruthLens backend running on http://localhost:${PORT}`);
+  console.log(`[STARTUP] NODE_ENV is set to: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`TruthLens backend running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Check endpoint: POST http://localhost:${PORT}/api/check`);
 });

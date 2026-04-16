@@ -3,7 +3,7 @@ import { isFactualClaim, compareClaimWithSources } from "../services/groq";
 import { searchWikipedia } from "../services/wikipedia";
 import { searchPubMed } from "../services/pubmed";
 
-const router = Router();
+const router: Router = Router();
 
 let lastGroqCallTime = 0;
 const MIN_GROQ_INTERVAL_MS = 2000;
