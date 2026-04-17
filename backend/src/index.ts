@@ -9,22 +9,10 @@ import checkRouter from "./routes/check";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS configuration matching constraints
-const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    if (!origin) return callback(null, true);
-    if (
-      origin.startsWith('chrome-extension://') ||
-      origin === 'http://localhost:3000' ||
-      (origin.startsWith('https://') && origin.endsWith('.railway.app'))
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
-};
-app.use(cors(corsOptions));
+// CORS configuration
+// Allow all origins because the Chrome extension's content script makes requests
+// from the hosted webpage's domain (e.g., https://gemini.google.com), not chrome-extension://
+app.use(cors());
 app.use(express.json());
 
 // Rate Limiting on API
