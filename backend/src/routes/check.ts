@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { isFactualClaim, compareClaimWithSources } from "../services/groq";
 import { searchWikipedia } from "../services/wikipedia";
-import { searchPubMed } from "../services/pubmed";
+import { searchPubMedMedical } from "../services/pubmed";
+import { getCached, setCached } from "../db/cache";
 
 const router: Router = Router();
 
@@ -35,6 +36,14 @@ router.post("/check", async (req: Request, res: Response) => {
     const trimmed = sentence.trim();
     console.log(`\n[TruthLens] Checking: "${trimmed}"`);
 
+    // Step 0: Check Database Cache First
+    const cachedEntry = await getCached(trimmed);
+    if (cachedEntry) {
+      console.log(`[TruthLens] Cache hit! Returning instant verdict.`);
+      res.json({ ...cachedEntry, cached: true });
+      return;
+    }
+
     await waitForGroqSlot();
 
     // Step 1: Determine if this is a factual claim
@@ -52,7 +61,7 @@ router.post("/check", async (req: Request, res: Response) => {
     // Step 2: Search sources in parallel
     const [wikiResult, pubmedResult] = await Promise.allSettled([
       searchWikipedia(trimmed),
-      searchPubMed(trimmed),
+      searchPubMedMedical(trimmed, claimResult.claimType),
     ]);
 
     const sources: any[] = [];
@@ -69,7 +78,10 @@ router.post("/check", async (req: Request, res: Response) => {
     const verdict = await compareClaimWithSources(trimmed, sources);
     console.log(`[TruthLens] Verdict:`, verdict);
 
-    res.json(verdict);
+    // Step 4: Persist to Cache before returning
+    await setCached(trimmed, verdict.result, verdict.reason, verdict.sources, claimResult.claimType);
+
+    res.json({ ...verdict, cached: false });
   } catch (error) {
     console.error("[TruthLens] Error:", error);
     res.status(500).json({

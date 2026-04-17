@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import checkRouter from "./routes/check";
+import { initDB } from "./db/cache";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -59,8 +60,9 @@ app.get("/health", (_req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[STARTUP] NODE_ENV is set to: ${process.env.NODE_ENV || 'development'}`);
+  await initDB();
   console.log(`TruthLens backend running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Check endpoint: POST http://localhost:${PORT}/api/check`);

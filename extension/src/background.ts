@@ -5,7 +5,7 @@ export {};
  * Placeholder — will handle communication between content script and backend.
  */
 
-const BACKEND_URL = "http://localhost:3000";
+const BACKEND_URL = "https://truth-lens-production-e60f.up.railway.app";
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("TruthLens extension installed.");

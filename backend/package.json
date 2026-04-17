@@ -17,13 +17,15 @@
     "express": "^4.21.0",
     "express-rate-limit": "^7.1.5",
     "groq-sdk": "^0.8.0",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/node-fetch": "^2.6.12",
+    "@types/pg": "^8.11.0",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.7.0"

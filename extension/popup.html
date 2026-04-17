@@ -7,46 +7,39 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
+  <div class="container" style="padding: 16px; font-family: -apple-system, system-ui, sans-serif;">
     <div class="header">
-      <h1 class="title">TruthLens</h1>
-      <span class="version">v1.0</span>
+      <h1 class="title" style="margin: 0; font-size: 18px;">TruthLens <span class="version" style="font-size: 12px; color: #6b7280;">v1.0</span></h1>
     </div>
 
-    <p class="status">
-      <span class="status-dot active"></span>
+    <p class="status" style="margin: 10px 0; font-size: 13px; color: #374151;">
       Active &mdash; watching for AI output
     </p>
 
-    <div class="counter">
-      <span class="counter-number" id="totalChecked">0</span>
-      <span class="counter-label">sentences checked today</span>
+    <div class="counter" style="margin: 15px 0; font-weight: 500;">
+      Sentences checked today: <span id="totalChecked">0</span>
     </div>
 
-    <hr class="divider" />
+    <hr class="divider" style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;" />
 
-    <div class="legend">
-      <div class="legend-item">
-        <span class="dot green"></span>
+    <div class="legend" style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+      <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+        <span class="dot green" style="background-color: #22c55e; display: inline-block; width: 9px; height: 9px; border-radius: 50%;"></span>
         <span>Verified</span>
       </div>
-      <div class="legend-item">
-        <span class="dot yellow"></span>
+      <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+        <span class="dot yellow" style="background-color: #f59e0b; display: inline-block; width: 9px; height: 9px; border-radius: 50%;"></span>
         <span>Unverified</span>
       </div>
-      <div class="legend-item">
-        <span class="dot red"></span>
+      <div class="legend-item" style="display: flex; align-items: center; gap: 8px;">
+        <span class="dot red" style="background-color: #ef4444; display: inline-block; width: 9px; height: 9px; border-radius: 50%;"></span>
         <span>Contradicted</span>
-      </div>
-      <div class="legend-item">
-        <span class="dot grey"></span>
-        <span>Not a claim</span>
       </div>
     </div>
 
-    <hr class="divider" />
+    <hr class="divider" style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;" />
 
-    <a class="github-link" href="https://github.com" target="_blank">
+    <a class="github-link" href="https://github.com" target="_blank" style="display: block; text-align: center; color: #3b82f6; text-decoration: none; font-size: 13px;">
       &#10697; View on GitHub
     </a>
   </div>
