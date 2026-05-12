@@ -95,32 +95,43 @@ router.post("/check", async (req: Request, res: Response) => {
 
     console.log(`[TruthLens] Found ${sources.length} source(s)`);
 
-    // FIX 2: Filter out irrelevant sources before comparison
-    const relevantSources = sources.filter(s => {
-      const text = s?.summary || s?.abstract || '';
-      const relevant = isSourceRelevant(trimmed, text);
-      if (!relevant) {
-        console.log(`[TruthLens] Filtered out irrelevant source: ${s?.source}`);
+    const isMedicalOrScientific =
+      claimResult.claimType === 'medical' ||
+      claimResult.claimType === 'scientific';
+
+    let sourcesToUse = sources.filter(s => s !== null);
+
+    if (!isMedicalOrScientific) {
+      // For general/historical claims, filter by keyword relevance
+      const relevantSources = sourcesToUse.filter(s => {
+        const text = s?.summary || s?.abstract || '';
+        const relevant = isSourceRelevant(trimmed, text);
+        if (!relevant) {
+          console.log(`[TruthLens] Filtered out irrelevant source: ${s?.source}`);
+        }
+        return relevant;
+      });
+
+      console.log(`[TruthLens] ${relevantSources.length} relevant source(s) after filtering`);
+
+      if (relevantSources.length > 0) {
+        sourcesToUse = relevantSources;
+      } else {
+        const yellowVerdict = {
+          result: 'yellow',
+          reason: 'No relevant sources found to verify this claim.',
+          sources: [] as string[],
+        };
+        await setCached(trimmed, yellowVerdict.result, yellowVerdict.reason, yellowVerdict.sources, claimResult.claimType);
+        res.json({ ...yellowVerdict, cached: false });
+        return;
       }
-      return relevant;
-    });
-
-    console.log(`[TruthLens] ${relevantSources.length} relevant source(s) after filtering`);
-
-    // If no relevant sources remain, return yellow immediately
-    if (relevantSources.length === 0) {
-      const yellowVerdict = {
-        result: 'yellow',
-        reason: 'No relevant sources found to verify this claim.',
-        sources: [] as string[],
-      };
-      await setCached(trimmed, yellowVerdict.result, yellowVerdict.reason, yellowVerdict.sources, claimResult.claimType);
-      res.json({ ...yellowVerdict, cached: false });
-      return;
+    } else {
+      console.log(`[TruthLens] Medical/scientific claim — bypassing relevance filter`);
     }
 
-    // Step 3: Compare claim with RELEVANT sources only using Groq
-    const verdict = await compareClaimWithSources(trimmed, relevantSources);
+    // Step 3: Compare claim with sources using Groq (passes claimType for prompt selection)
+    const verdict = await compareClaimWithSources(trimmed, sourcesToUse, claimResult.claimType);
     console.log(`[TruthLens] Verdict:`, verdict);
 
     // Step 4: Persist to Cache before returning

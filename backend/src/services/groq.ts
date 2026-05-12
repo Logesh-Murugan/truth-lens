@@ -84,10 +84,12 @@ export async function quickRelevanceCheck(
 
 /**
  * Compare a claim against source excerpts and return a verdict.
+ * Uses different prompts for medical/scientific vs general/historical claims.
  */
 export async function compareClaimWithSources(
   sentence: string,
-  sources: any[]
+  sources: any[],
+  claimType: string = "general"
 ): Promise<{ result: string; reason: string; sources: string[] }> {
   // Build source text (max 1500 characters)
   let sourceText = "";
@@ -112,16 +114,31 @@ export async function compareClaimWithSources(
     };
   }
 
-  // FIX 4: Quick relevance pre-check before full comparison
-  const isRelevant = await quickRelevanceCheck(sentence, sourceText);
-  if (!isRelevant) {
-    console.log('[Groq] Sources deemed irrelevant — returning yellow instead of risking false red');
-    return {
-      result: "yellow",
-      reason: "Sources found were not relevant to this specific claim.",
-      sources: sourceNames,
-    };
+  const isMedicalOrScientific = claimType === 'medical' || claimType === 'scientific';
+
+  // FIX 3: Only run quickRelevanceCheck for general/historical claims
+  if (!isMedicalOrScientific) {
+    const isRelevant = await quickRelevanceCheck(sentence, sourceText);
+    if (!isRelevant) {
+      console.log('[Groq] Sources deemed irrelevant — returning yellow instead of risking false red');
+      return {
+        result: "yellow",
+        reason: "Sources found were not relevant to this specific claim.",
+        sources: sourceNames,
+      };
+    }
+  } else {
+    console.log('[Groq] Medical/scientific claim — skipping relevance pre-check');
   }
+
+  // FIX 2: Select prompt based on claim type
+  const medicalPrompt =
+    'You are a medical and scientific fact-checker with expert knowledge. Compare the claim against the sources provided AND your own training knowledge about medicine and science. RULES: - For medical claims: use your knowledge of WHO guidelines, medical consensus, and established research — even if sources are weak. - Return RED if the claim is medically dangerous or scientifically false based on your knowledge. - Return GREEN if the claim matches established medical/scientific consensus. - Return YELLOW only if genuinely uncertain. Examples you must get right: - Aspirin for children under 12 → RED (causes Reye\'s syndrome, WHO contraindicated). - Ibuprofen 400mg for adults → GREEN (standard dosage). - Vaccines cause autism → RED (scientifically disproven). - Water boils at 100C → GREEN (established fact). Respond ONLY with valid JSON, no markdown. Format: {"result": "green" or "yellow" or "red", "reason": "one sentence under 100 characters"}';
+
+  const generalPrompt =
+    'You are a careful fact-checker. Compare the claim against the source excerpts provided. CRITICAL RULES: - Return RED only if the source DIRECTLY and EXPLICITLY contradicts the claim with clear opposing information. - If the source is about a different topic than the claim, return YELLOW — never RED. - If the source partially supports or is unrelated, return YELLOW. - Only return GREEN if the source clearly and directly confirms the specific claim. - When in doubt between RED and YELLOW, always choose YELLOW. - A source about a different subject cannot contradict a claim. Respond ONLY with valid JSON, no markdown. Format: {"result": "green" or "yellow" or "red", "reason": "one sentence under 100 characters"}';
+
+  const systemPrompt = isMedicalOrScientific ? medicalPrompt : generalPrompt;
 
   try {
     const completion = await groq.chat.completions.create({
@@ -129,8 +146,7 @@ export async function compareClaimWithSources(
       messages: [
         {
           role: "system",
-          content:
-            'You are a careful fact-checker. Compare the claim against the source excerpts provided. CRITICAL RULES: - Return RED only if the source DIRECTLY and EXPLICITLY contradicts the claim with clear opposing information. - If the source is about a different topic than the claim, return YELLOW — never RED. - If the source partially supports or is unrelated, return YELLOW. - Only return GREEN if the source clearly and directly confirms the specific claim. - When in doubt between RED and YELLOW, always choose YELLOW. - A source about a different subject cannot contradict a claim. Respond ONLY with valid JSON, no markdown. Format: {"result": "green" or "yellow" or "red", "reason": "one sentence under 100 characters"}',
+          content: systemPrompt,
         },
         {
           role: "user",
