@@ -1,0 +1,42 @@
+SHORT DESCRIPTION (132 chars max):
+Real-time AI hallucination detector. Shows trust indicators on every 
+sentence across ChatGPT, Claude, Gemini — completely free.
+
+FULL DESCRIPTION:
+TruthLens is a free Chrome extension that protects you from AI 
+misinformation in real time.
+
+Every AI — ChatGPT, Claude, Gemini, Copilot — confidently says things 
+that are completely wrong. Doctors get wrong drug dosages. Students get 
+fake citations. Lawyers get invented case law. Nobody knows when AI is 
+lying until it is too late.
+
+TruthLens sits on top of any AI tool and shows a coloured dot next to 
+every sentence:
+
+🟢 GREEN — Verified by Wikipedia, PubMed, or trusted databases
+🟡 YELLOW — Could not verify — treat with caution  
+🔴 RED — Contradicts known sources — do not act on this
+
+HOW IT WORKS:
+TruthLens reads every sentence the AI writes. For each factual claim, 
+it cross-checks against Wikipedia, PubMed (medical research), and 
+Wikidata in real time. Results appear as coloured dots in 2-3 seconds 
+— automatically, without you doing anything.
+
+WHO IT HELPS:
+- Students — catch fake citations before submitting assignments
+- Doctors and nurses — verify medical information from AI
+- Journalists — fact-check AI-assisted content before publishing
+- Lawyers — catch invented case references
+- Everyone — know when to trust AI and when to verify
+
+COMPLETELY FREE:
+No subscription. No account. No data sold. Open source.
+
+PRIVACY:
+Only the sentence text is sent for verification. No personal data, 
+no browsing history, no login information is ever collected.
+
+TECH: Built with TypeScript, Chrome Manifest V3, Groq Llama 3.3, 
+Wikipedia API, PubMed NCBI API, PostgreSQL caching.
