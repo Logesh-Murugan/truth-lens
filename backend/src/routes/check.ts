@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
+import crypto from "crypto";
 import { isFactualClaim, compareClaimWithSources } from "../services/groq";
 import { searchWikipedia } from "../services/wikipedia";
 import { searchPubMedMedical } from "../services/pubmed";
-import { getCached, setCached } from "../db/cache";
+import { getCached, setCached, pool } from "../db/cache";
 
 const router: Router = Router();
 
@@ -144,6 +145,23 @@ router.post("/check", async (req: Request, res: Response) => {
       result: "yellow",
       reason: "Verification temporarily unavailable.",
     });
+  }
+});
+
+router.post("/cache/clear", async (req: Request, res: Response) => {
+  try {
+    const { sentence } = req.body;
+    if (!sentence) {
+      res.status(400).json({ error: "No sentence provided" });
+      return;
+    }
+    const hash = crypto.createHash("md5").update(sentence.toLowerCase().trim()).digest("hex");
+    await pool.query("DELETE FROM claim_cache WHERE sentence_hash = $1", [hash]);
+    console.log(`[Cache] Cleared cache for hash: ${hash}`);
+    res.json({ cleared: true });
+  } catch (error) {
+    console.error("[Cache] Clear error:", error);
+    res.status(500).json({ error: "Failed to clear cache" });
   }
 });
 
