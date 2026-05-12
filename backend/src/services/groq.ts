@@ -48,6 +48,41 @@ export async function isFactualClaim(
 }
 
 /**
+ * Quick relevance pre-check: determines if a source is even about the same topic
+ * as the claim before doing a full comparison. Prevents false RED from irrelevant sources.
+ */
+export async function quickRelevanceCheck(
+  claim: string,
+  sourceText: string
+): Promise<boolean> {
+  try {
+    const response = await groq.chat.completions.create({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'Answer only with true or false. No other text.'
+        },
+        {
+          role: 'user',
+          content: `Is this source text relevant to fact-checking this claim?\nCLAIM: ${claim}\nSOURCE (first 200 chars): ${sourceText.slice(0, 200)}\nAnswer true if the source is about the same topic as the claim.\nAnswer false if the source is about a completely different topic.`
+        }
+      ],
+      temperature: 0,
+      max_tokens: 5,
+    });
+
+    const answer = response.choices[0]?.message?.content?.toLowerCase() || 'false';
+    const isRelevant = answer.includes('true');
+    console.log(`[Groq] Relevance check: ${isRelevant ? 'RELEVANT' : 'NOT RELEVANT'}`);
+    return isRelevant;
+  } catch (error) {
+    console.error('[Groq] Relevance check error:', error);
+    return true; // default to relevant on error to avoid blocking
+  }
+}
+
+/**
  * Compare a claim against source excerpts and return a verdict.
  */
 export async function compareClaimWithSources(
@@ -77,6 +112,17 @@ export async function compareClaimWithSources(
     };
   }
 
+  // FIX 4: Quick relevance pre-check before full comparison
+  const isRelevant = await quickRelevanceCheck(sentence, sourceText);
+  if (!isRelevant) {
+    console.log('[Groq] Sources deemed irrelevant — returning yellow instead of risking false red');
+    return {
+      result: "yellow",
+      reason: "Sources found were not relevant to this specific claim.",
+      sources: sourceNames,
+    };
+  }
+
   try {
     const completion = await groq.chat.completions.create({
       model: MODEL,
@@ -84,7 +130,7 @@ export async function compareClaimWithSources(
         {
           role: "system",
           content:
-            'You are a fact-checker. Compare the claim against the source excerpts provided, but also use your internal knowledge of established medical guidelines and scientific consensus if the sources are insufficient. Respond ONLY with valid JSON, no markdown. Format: {"result": "green" or "yellow" or "red", "reason": "one sentence explanation under 120 characters"}. green = claim is factually correct. red = claim contradicts medical guidelines or established facts. yellow = claim is unclear or unable to be verified.',
+            'You are a careful fact-checker. Compare the claim against the source excerpts provided. CRITICAL RULES: - Return RED only if the source DIRECTLY and EXPLICITLY contradicts the claim with clear opposing information. - If the source is about a different topic than the claim, return YELLOW — never RED. - If the source partially supports or is unrelated, return YELLOW. - Only return GREEN if the source clearly and directly confirms the specific claim. - When in doubt between RED and YELLOW, always choose YELLOW. - A source about a different subject cannot contradict a claim. Respond ONLY with valid JSON, no markdown. Format: {"result": "green" or "yellow" or "red", "reason": "one sentence under 100 characters"}',
         },
         {
           role: "user",
