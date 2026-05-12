@@ -1,4 +1,5 @@
-const MIN_SENTENCE_LENGTH = 25;
+const MIN_SENTENCE_LENGTH = 15;
+const MAX_QUEUE = 20;
 const checkedSentences = new Map<string, { result: string, reason: string, sources?: string[] } | 'pending' | 'failed'>();
 const elementDots = new WeakMap<Element, Set<string>>();
 
@@ -325,30 +326,45 @@ async function checkSentence(sentence: string, element: Element) {
   }
 }
 
+function enqueueSentence(sentence: string, element: Element) {
+  const status = checkedSentences.get(sentence);
+
+  if (!status) {
+    // Check queue size limit
+    let pendingCount = 0;
+    for (const v of checkedSentences.values()) {
+      if (v === 'pending') pendingCount++;
+    }
+    if (pendingCount >= MAX_QUEUE) return;
+
+    checkedSentences.set(sentence, 'pending');
+    checkSentence(sentence, element); // fire and forget
+  } else if (status !== 'pending' && status !== 'failed') {
+    // Re-inject cached verdict if this is a newly spawned DOM node
+    injectDot(element, status.result, status.reason, sentence, status.sources);
+  } else if (status === 'failed') {
+    injectDot(element, 'grey', 'Verification failed', sentence);
+  }
+}
+
 function processParagraph(element: Element) {
   const text = (element.textContent || '').trim();
   if (text.length < MIN_SENTENCE_LENGTH) return;
 
-  // Only match fully punctuated sentences — this PREVENTS double dots during streaming!
+  // For <LI> elements: treat entire bullet point as ONE fact — don't split
+  if (element.tagName === 'LI') {
+    enqueueSentence(text, element);
+    return;
+  }
+
+  // For <P> elements: split into sentences by punctuation
   const sentences = text
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
-    .filter(s => s.length > MIN_SENTENCE_LENGTH && /[.!?]$/.test(s));
+    .filter(s => s.length >= MIN_SENTENCE_LENGTH);
 
-  for (const sentence of sentences) {
-    const status = checkedSentences.get(sentence);
-
-    if (!status) {
-      // New sentence
-      checkedSentences.set(sentence, 'pending');
-      checkSentence(sentence, element); // fire and forget
-    } else if (status !== 'pending' && status !== 'failed') {
-      // Re-inject cached verdict if this is a newly spawned DOM node
-      injectDot(element, status.result, status.reason, sentence, status.sources);
-    } else if (status === 'failed') {
-      injectDot(element, 'grey', 'Verification failed', sentence);
-    }
-  }
+  // Cap at 3 sentences per paragraph to avoid flooding the queue
+  sentences.slice(0, 3).forEach(s => enqueueSentence(s, element));
 }
 
 function watchPage() {
