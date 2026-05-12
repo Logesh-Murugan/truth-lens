@@ -10,13 +10,13 @@ import { initDB } from "./db/cache";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust Railway's proxy (required for express-rate-limit to work behind cloud platforms)
+// Trust Render's proxy (required for express-rate-limit to work behind cloud platforms)
 app.set('trust proxy', 1);
 
 // CORS configuration
 // Allow all origins because the Chrome extension's content script makes requests
 // from the hosted webpage's domain (e.g., https://gemini.google.com), not chrome-extension://
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // Rate Limiting on API

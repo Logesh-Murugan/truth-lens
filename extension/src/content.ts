@@ -1,3 +1,4 @@
+const BACKEND_URL = 'https://truth-lens-backend-yswi.onrender.com';
 
 const MIN_SENTENCE_LENGTH = 25;
 const checkedSentences = new Map<string, { result: string, reason: string } | 'pending' | 'failed'>();
@@ -214,3 +215,4 @@ function watchPage() {
 
 console.log('TruthLens v1.0 — watching for AI output');
 watchPage();
+
